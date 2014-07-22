@@ -1,0 +1,36 @@
+#!/bin/bash
+#
+# Script which handles the routing issues as necessary for pppd
+# Only the link to Newman requires this handling.
+#
+# When the ppp link comes up, this script is called with the following
+# parameters
+#       $1      the interface name used by pppd (e.g. ppp3)
+#       $2      the tty device name
+#       $3      the tty device speed
+#       $4      the local IP address for the interface
+#       $5      the remote IP address
+#       $6      the parameter specified by the 'ipparam' option to pppd
+#
+
+LOCAL_GW=`ip route show | grep ^default | awk '{print $3}'`
+
+# Tables such as ppp0, ppp1, etc should exist in /etc/iproute2/rt_tables
+ip route add default via $4 dev $1 table $1
+ip rule add from $4 lookup $1 prio 1000
+
+if [ "$1" != "ppp0" ]; then
+        exit
+fi
+
+for i in $(netstat -nt | grep -i 'ESTABLISHED' | cut -c45-65 | cut -d: -f1 ) ; do route add -host $i gw $LOCAL_GW; done
+
+VPN_GATEWAY=$4
+ORIGINAL_GATEWAY=`ip route show | grep ^default | cut -d ' ' -f 2-5`
+
+ip route add $5 $ORIGINAL_GATEWAY
+ip route add $VPN_GATEWAY dev $1
+ip route add 0.0.0.0/1 via $VPN_GATEWAY dev $1
+ip route add 128.0.0.0/1 via $VPN_GATEWAY dev $1
+ip route flush table cache
+

@@ -1,0 +1,16 @@
+#!/bin/bash
+
+ip rule del from $4
+
+if [ "$1" != "ppp0" ]; then
+        exit
+fi
+
+ORIGINAL_GATEWAY=`ip route show | grep ^default | cut -d ' ' -f 2-5`
+
+ip route del $5 $ORIGINAL_GATEWAY
+ip route del $VPN_GATEWAY dev $
+ip route del 0.0.0.0/1 dev $1
+ip route del 128.0.0.0/1 dev $1
+ip route flush table cache
+
